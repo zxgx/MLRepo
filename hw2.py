@@ -14,40 +14,33 @@ x_train = (x_train - xmin) / dif
 
 # Parameters Configuration
 W, b = np.random.rand(x_train.shape[1], 1), np.random.rand()
-iteration = 30
+iteration = 200
 eta = 1
 ww, bb = np.zeros((x_train.shape[1], 1)), np.zeros(1)
+"""
 batch = 100
 if x_train.shape[0] % batch == 0:
     batchs = x_train.shape[0] // batch
 else:
     batchs = x_train.shape[0] // batch + 1
-
+"""
 # Loss = []
 # Training
 for i in range(iteration):
-    for bat in range(batchs):
-        if bat == batchs - 1:
-            x_t = x_train[bat*batch:, :]
-            y_t = y_train[bat*batch:, :]
-        else:
-            x_t = x_train[bat*batch:(bat+1)*batch, :]
-            y_t = y_train[bat*batch:(bat+1)*batch, :]
+    z = x_train.dot(W) + b
+    y = 1 / (1 + np.exp(-1 * z))
 
-        z = x_t.dot(W) + b
-        y = 1 / (1 + np.exp(-1 * z))
+    loss = np.sum(-1 * (y_train * np.log(y) + (1 - y_train) * np.log(1 - y)))
+    print('loss: ', loss)
+    # Loss.append(loss)
 
-        loss = np.sum(-1 * (y_t * np.log(y) + (1 - y_t) * np.log(1 - y)))
-        print('loss: ', loss)
-        # Loss.append(loss)
+    dldw = np.sum((y - y_train) * x_train, axis=0)[: ,np.newaxis]
+    dldb = np.sum(y - y_train)
+    ww = ww + dldw ** 2
+    bb = bb + dldb ** 2
 
-        dldw = np.sum((y - y_t) * x_t, axis=0)[: ,np.newaxis]
-        dldb = np.sum(y - y_t)
-        ww = ww + dldw ** 2
-        bb = bb + dldb ** 2
-
-        W = W - eta / np.sqrt(ww) * dldw
-        b = b - eta / np.sqrt(bb) * dldb
+    W = W - eta / np.sqrt(ww) * dldw
+    b = b - eta / np.sqrt(bb) * dldb
 
 z = x_train.dot(W) + b
 y = 1 / (1 + np.exp(-1 * z))

@@ -14,14 +14,20 @@ y_test = utils.to_categorical(y_test, 10)
 # Network construction
 neurons = (x_train.shape[1], 500, 500, 10)
 layers = len(neurons)-1
-eta = 0.001
+eta = 1
 W, B, L = [], [], []
 ww, bb = [], []
+
+W.append(np.random.rand(neurons[0], neurons[1]) * 0.01)
+W.append(np.random.rand(neurons[1], neurons[2]) * 0.01)
+W.append(np.random.rand(neurons[2], neurons[3]) * 1)
+B.append(np.random.rand(1, neurons[1]) * 0.01)
+B.append(np.random.rand(1, neurons[2]) * 0.01)
+B.append(np.random.rand(1, neurons[3]) * 1)
+
 for layer in range(layers):
-    W.append(np.random.rand(neurons[layer], neurons[layer+1]))
-    ww.append(np.zeros((neurons[layer], neurons[layer+1])))
-    B.append(np.random.rand(1, neurons[layer+1]))
-    bb.append(np.zeros((1, neurons[layer+1])))
+    ww.append(np.ones((neurons[layer], neurons[layer+1])))
+    bb.append(np.ones((1, neurons[layer+1])))
 
 # Training
 iterations, batchs = 20, 100
@@ -34,13 +40,13 @@ for i in range(iterations):
         for layer in range(layers):
             z = X.dot(W[layer]) + B[layer]
             if layer != layers-1:
-                a.append(funcs.relu(z))
-                # a.append(funcs.sigmoid(z))
+                z = 1 / (1 + np.exp(-1 * z))
+                a.append(z)
             else:
                 a.append(funcs.softmax(z))
             X = a[-1]
 
-        # recording error, the crossentropy
+        # recording error, crossentropy
         Y = y_train[batch*batchs:(batch+1)*batchs, :]
         ln = np.sum(-1 * np.log(X) * Y, axis=1)
         L.append(sum(ln))
@@ -48,8 +54,8 @@ for i in range(iterations):
         # backward pass
         plpa = -1.0 * Y / X
         for layer in range(layers-1, -1, -1):
-            # papz = a[layer] * (1 - a[layer])
-            papz = np.ones(a[layer].shape)
+            papz = a[layer] * (1 - a[layer])    # for sigmoid
+            # papz = np.ones(a[layer].shape)    # for relu
             if layer == 0:
                 pzpw = x_train[batch*batchs:(batch+1)*batchs, :]
             else:

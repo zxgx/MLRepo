@@ -34,8 +34,8 @@ for i in range(iterations):
         for layer in range(layers):
             z = X.dot(W[layer]) + B[layer]
             if layer != layers-1:
-                a.append(funcs.relu(z))
-                # a.append(funcs.sigmoid(z))
+                # a.append(funcs.relu(z))
+                a.append(funcs.sigmoid(z))
             else:
                 a.append(funcs.softmax(z))
             X = a[-1]
@@ -43,7 +43,7 @@ for i in range(iterations):
         # recording error, the crossentropy
         Y = y_train[batch*batchs:(batch+1)*batchs, :]
         ln = np.sum(-1 * np.log(X) * Y, axis=1)
-        L.append(sum(ln))
+        L.append(np.sum(ln))
 
         # backward pass
         plpa = -1.0 * Y / X

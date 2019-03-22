@@ -1,8 +1,11 @@
 from keras.datasets import mnist
 import keras.utils as utils
 import numpy as np
-import utils as funcs
-import matplotlib.pylab as plt
+
+def softmax(z):
+    z = np.exp(z)
+    d = np.sum(z, axis=1, keepdims=True)
+    return z/d
 
 # Preprocess
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -14,63 +17,58 @@ y_test = utils.to_categorical(y_test, 10)
 # Network construction
 neurons = (x_train.shape[1], 500, 500, 10)
 layers = len(neurons)-1
-eta = 1
+eta = 0.01
+eps = 1e-8
 W, B, L = [], [], []
 ww, bb = [], []
-
-W.append(np.random.rand(neurons[0], neurons[1]) * 0.01)
-W.append(np.random.rand(neurons[1], neurons[2]) * 0.01)
-W.append(np.random.rand(neurons[2], neurons[3]) * 1)
-B.append(np.random.rand(1, neurons[1]) * 0.01)
-B.append(np.random.rand(1, neurons[2]) * 0.01)
-B.append(np.random.rand(1, neurons[3]) * 1)
-
-for layer in range(layers):
-    ww.append(np.ones((neurons[layer], neurons[layer+1])))
-    bb.append(np.ones((1, neurons[layer+1])))
+for i in range(layers):
+    W.append(np.random.rand(neurons[i], neurons[i+1]))
+    B.append(np.random.rand(1, neurons[i+1]))
+    ww.append(np.zeros((neurons[i], neurons[i+1]))+eps)
+    bb.append(np.zeros((1, neurons[i+1]))+eps)
 
 # Training
-iterations, batchs = 20, 100
-for i in range(iterations):
-    for batch in range(x_train.shape[0]//batchs):
-        X = x_train[batch*batchs:batchs*(batch+1), :]
+epochs, batch_size = 20, 64
+for i in range(epochs):
+    print("epoch: ", i)
+    for batch in range(int(np.ceil(x_train.shape[0]/batch_size))):
+        X = x_train[batch*batch_size : batch_size*(batch+1)]
         a = []
 
         # forward pass
         for layer in range(layers):
             z = X.dot(W[layer]) + B[layer]
-            if layer != layers-1:
-                a.append(funcs.sigmoid(z))
-            else:
-                a.append(funcs.softmax(z))
-            X = a[-1]
 
-        # recording error, crossentropy
-        Y = y_train[batch*batchs:(batch+1)*batchs, :]
-        ln = np.sum(-1 * np.log(X) * Y, axis=1)
-        L.append(np.sum(ln))
+            if layer != layers-1:
+                a.append(1/(1+np.exp(-z)))
+            else:
+                a.append(softmax(z))
+            X = a[-1]
+        X = np.clip(X, eps, 1-eps)
+        # recording error, cross entropy
+        Y = y_train[batch*batch_size : (batch+1)*batch_size]
+        ln = np.mean(np.sum(-1 * np.log(X) * Y, axis=1))
+        # print("loss: ", ln)
+        L.append(ln)
 
         # backward pass
-        plpa = -1.0 * Y / X
-        for layer in range(layers-1, -1, -1):
-            papz = a[layer] * (1 - a[layer])    # for sigmoid
-            # papz = np.ones(a[layer].shape)    # for relu
+        plpa = -Y / X
+        for layer in reversed(range(layers)):
+            papz = a[layer] * (1 - a[layer])    # sigmoid or softmax derivation
             if layer == 0:
-                pzpw = x_train[batch*batchs:(batch+1)*batchs, :]
+                pzpw = x_train[batch*batch_size:(batch+1)*batch_size]
             else:
                 pzpw = a[layer-1]
             plpz = plpa * papz
 
             plpa = plpz.dot(W[layer].T)
-
-            # Vanilla gradient descent
-            for col in range(plpz.shape[1]):
-                plpw = np.sum((plpz[:, col][:, np.newaxis] * pzpw), axis=0).T
-                ww[layer][:, col] += plpw ** 2
-                W[layer][:, col] = W[layer][:, col] - eta * plpw / np.sqrt(ww[layer][:, col])
-            bb[layer] += np.sum(plpz, axis=0) ** 2
-            B[layer] = B[layer] - eta * np.sum(plpz, axis=0) / np.sqrt(bb[layer])
-
+            
+            gradw = pzpw.T.dot(plpz)
+            ww[layer]=ww[layer]+gradw**2
+            W[layer]=W[layer]-eta*gradw/np.sqrt(ww[layer])
+            gradb = np.sum(plpz, axis=0, keepdims=True)
+            bb[layer]=bb[layer]+gradb**2
+            B[layer]=B[layer]-eta*gradb/np.sqrt(bb[layer])
 
 # validation on training data
 X = x_train
@@ -79,11 +77,11 @@ for layer in range(layers):
     X = X.dot(W[layer])+B[layer]
     Y = Y.dot(W[layer])+B[layer]
     if layer == layers-1:
-        X = funcs.softmax(X)
-        Y = funcs.softmax(Y)
+        X = softmax(X)
+        Y = softmax(Y)
     else:
-        X = funcs.sigmoid(X)
-        Y = funcs.sigmoid(Y)
+        X = 1/(1+np.exp(-X))
+        Y = 1/(1+np.exp(-Y))
 
 res = np.argmax(X, axis=1)
 trueth = np.argmax(y_train, axis=1)
@@ -94,6 +92,3 @@ res = np.argmax(Y, axis=1)
 trueth = np.argmax(y_test, axis=1)
 accuracy = np.sum(res == trueth) / len(res)
 print('accuracy on testing data: ', accuracy)
-
-plt.plot(range(len(L)), L)
-plt.show()

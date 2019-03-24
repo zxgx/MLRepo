@@ -61,16 +61,15 @@ And now back to [the first link][another place].
 2. 外层 2
 	1. 2.1
 	2. 2.2
->嵌套失败?
+>github的缩进是tab
 
 ### 列表中插入段落
 1. first paragraph
 
 	需要缩进
-
 	
 2. second parag
-	>哈喽哈喽嘿~
+	>哈喽哈喽嘿~  
 	**列表的空行有讲究**
 
 3. third

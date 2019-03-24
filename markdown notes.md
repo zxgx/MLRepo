@@ -11,7 +11,8 @@ _**粗体+斜体**_
 ###### Header six
 ##错误示范
 ### header中可以加_斜体_，但不可以加**粗体**
->github中标题不可以加_斜体_吗？
+
+>github中的*斜体*是一个星
 
 ## 两种链接方式
 [inline link to GitHub](https://www.github.com)

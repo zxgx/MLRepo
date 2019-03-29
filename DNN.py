@@ -3,6 +3,7 @@ import keras.utils as utils
 import numpy as np
 
 def softmax(z):
+    z -= np.max(z, axis=1, keepdims=True)
     z = np.exp(z)
     d = np.sum(z, axis=1, keepdims=True)
     return z/d
@@ -11,26 +12,26 @@ def softmax(z):
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 x_train = x_train.reshape((x_train.shape[0], x_train.shape[1] * x_train.shape[2])).astype(np.float64) / 255
 x_test = x_test.reshape((x_test.shape[0], x_test.shape[1] * x_test.shape[2])).astype(np.float64) / 255
-y_train = utils.to_categorical(y_train, 10)
-y_test = utils.to_categorical(y_test, 10)
+# y_train = utils.to_categorical(y_train, 10)
+# y_test = utils.to_categorical(y_test, 10)
 
 # Network construction
 neurons = (x_train.shape[1], 500, 500, 10)
 layers = len(neurons)-1
 eta = 0.01
 eps = 1e-8
-W, B, L = [], [], []
+W, B = [], []
 ww, bb = [], []
 for i in range(layers):
-    W.append(np.random.rand(neurons[i], neurons[i+1]))
-    B.append(np.random.rand(1, neurons[i+1]))
+    W.append(np.random.randn(neurons[i], neurons[i+1])*0.1)
+    B.append(np.random.randn(1, neurons[i+1])*0.1)
     ww.append(np.zeros((neurons[i], neurons[i+1]))+eps)
     bb.append(np.zeros((1, neurons[i+1]))+eps)
 
 # Training
 epochs, batch_size = 20, 64
 for i in range(epochs):
-    print("epoch: ", i)
+    L = []
     for batch in range(int(np.ceil(x_train.shape[0]/batch_size))):
         X = x_train[batch*batch_size : batch_size*(batch+1)]
         a = []
@@ -47,12 +48,13 @@ for i in range(epochs):
         X = np.clip(X, eps, 1-eps)
         # recording error, cross entropy
         Y = y_train[batch*batch_size : (batch+1)*batch_size]
-        ln = np.mean(np.sum(-1 * np.log(X) * Y, axis=1))
-        # print("loss: ", ln)
+        ln = np.mean(-np.log(X[range(X.shape[0]), Y]))
         L.append(ln)
 
         # backward pass
-        plpa = -Y / X
+        plpa = X
+        plpa[range(X.shape[0]), Y] -= 1
+        plpa /= X.shape[0]
         for layer in reversed(range(layers)):
             papz = a[layer] * (1 - a[layer])    # sigmoid or softmax derivation
             if layer == 0:
@@ -69,6 +71,7 @@ for i in range(epochs):
             gradb = np.sum(plpz, axis=0, keepdims=True)
             bb[layer]=bb[layer]+gradb**2
             B[layer]=B[layer]-eta*gradb/np.sqrt(bb[layer])
+    print("epoch %d, loss: %.5f" % (i, np.mean(L)))
 
 # validation on training data
 X = x_train
@@ -84,11 +87,9 @@ for layer in range(layers):
         Y = 1/(1+np.exp(-Y))
 
 res = np.argmax(X, axis=1)
-trueth = np.argmax(y_train, axis=1)
-accuracy = np.sum(res == trueth) / len(res)
+accuracy = np.sum(res == y_train) / len(res)
 print('accuracy on training data: ', accuracy)
 
 res = np.argmax(Y, axis=1)
-trueth = np.argmax(y_test, axis=1)
-accuracy = np.sum(res == trueth) / len(res)
+accuracy = np.sum(res == y_test) / len(res)
 print('accuracy on testing data: ', accuracy)

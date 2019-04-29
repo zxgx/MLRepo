@@ -140,7 +140,27 @@ class CaptioningRNN(object):
         # Note also that you are allowed to make use of functions from layers.py   #
         # in your implementation, if needed.                                       #
         ############################################################################
-        pass
+        # forward pass
+        h0 = features.dot(W_proj) + b_proj   # h0.shape = (N, H)
+        wordvec, cache_we = word_embedding_forward(captions_in, W_embed)# wordvec.shape = N, T, W
+        if self.cell_type == 'rnn':
+            hid, cache_rnn = rnn_forward(wordvec, h0, Wx, Wh, b)   # hid.shape = N, T, H
+        else:
+            hid, cache_rnn = lstm_forward(wordvec, h0, Wx, Wh, b)
+        y_hat, cache_temp = temporal_affine_forward(hid, W_vocab, b_vocab) # y = N, T, V
+        
+        # evaluation
+        loss, dout = temporal_softmax_loss(y_hat, captions_out, mask, verbose=False)
+        
+        # backward pass
+        dout, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, cache_temp)
+        if self.cell_type == 'rnn':
+            dout, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dout, cache_rnn)
+        else:
+            dout, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dout, cache_rnn)
+        grads['W_embed'] = word_embedding_backward(dout, cache_we)
+        grads['W_proj'] = features.T.dot(dh0)
+        grads['b_proj'] = np.sum(dh0, axis=0)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +225,19 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        pass
+        h = features.dot(W_proj) + b_proj   # N, H
+        words = np.ones(N, dtype=np.int32) * self._start # N, 1
+        H = Wh.shape[0]
+        c = np.zeros((N, H))
+        for step in range(max_length):
+            wordvec = W_embed[words,:]      # N, D
+            if self.cell_type == 'rnn':
+                h, _ = rnn_step_forward(wordvec, h, Wx, Wh, b)  # h.shape = N, H
+            else:
+                h, c, _ = lstm_step_forward(wordvec, h, c, Wx, Wh, b)
+            distributions = h.dot(W_vocab) + b_vocab        # d.shape = N, V
+            words = np.argmax(distributions, axis=1)
+            captions[:, step] = words
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
